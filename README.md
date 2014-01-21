@@ -5,6 +5,41 @@
 ## Introduction
 This library provides a pure Python interface for the [FluidSurveys API](https://docs.fluidsurveys.com/). It works with Python versions from 2 and 3. 
 
+## Building
+
+From source:
+Use `pip` to install dependencies:
+ 
+    $ pip install -r requirements.txt
+
+Clone the latest `fluidsurveys-python` library from Github:
+```
+ $ git clone https://github.com/fluidware/fluidsurveys-python.git
+ $ cd fluidsurveys-python
+```
+
+Extract the source distribution and run:
+
+```
+$ python setup.py build
+$ python setup.py install
+```
+*Testing*
+
+With setuptools installed:
+
+```
+$ python setup.py test
+```
+
+## Documentation
+
+View the last release API documentation at: [FluidSurveys API](https://docs.fluidsurveys.com/)
+
+## Using
+
+The library provides a Python wrapper around the Fluidsurveys API and the Fluidsurveys data model.
+
 In development
 ==============
 
