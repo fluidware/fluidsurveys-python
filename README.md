@@ -7,13 +7,15 @@ In development
 ==============
 
 
-example usage
--------------
+##### example usage
+
 
 ```python
 import fluidsurveys
 billy = fluidsurveys.Contact.retrieve(2)
-billy.name = "Billy bob"
+billy.name
+u'billy'
+billy.name = "Billy Bob"
 billy.save()
 <Contact at 0x7fbf48c4cdc0> JSON: {
   "contact_uri": "http://fluidsurveys.dev:8000/api/v3/contacts/2/", 

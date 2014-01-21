@@ -1,3 +1,7 @@
+"""
+Base classes that define resources.
+"""
+
 import urllib
 import warnings
 
@@ -316,14 +320,7 @@ class DeletableAPIResource(APIResource):
         self.refresh_from(self.request('delete', self.instance_url(), params))
         return self
 
-# API objects
 
-
-class Contact(CreateableAPIResource, UpdateableAPIResource,
+class ListableCrudResource(CreateableAPIResource, UpdateableAPIResource,
                ListableAPIResource, DeletableAPIResource):
-    #FluidContact
-    pass
-
-
-class Template(CreateableAPIResource, UpdateableAPIResource, ListableAPIResource, DeletableAPIResource):
     pass
