@@ -1,6 +1,8 @@
 import os
 import sys
 
+
+
 try:
     from setuptools import setup
 except ImportError:
@@ -37,7 +39,7 @@ setup(name='fluidsurvey',
       description='Fluidsurvey python bindings',
       author='Fluidware',
       author_email='support@fluidware.com',
-      url='http://www.fluidsurvey.com/',
+      url='https://github.com/fluidware/fluidsurveys-python.git',
       packages=['fluidsurvey', 'fluidsurvey.test'],
       install_requires=install_requires,
       test_suite='fluidsurvey.test.all',
