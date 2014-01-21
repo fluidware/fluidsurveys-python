@@ -282,47 +282,40 @@ class APIRequestorRequestTests(FluidUnitTestCase):
     def test_fails_without_api_key(self):
         fluidsurveys.api_key = None
 
-        self.assertRaises(fluidsurveys.error.AuthenticationError,
+        self.assertRaises(fluidsurveys.exceptions.AuthenticationError,
                           self.requestor.request,
                           'get', self.valid_path, {})
 
     def test_not_found(self):
         self.mock_response('{"error": {}}', 404)
 
-        self.assertRaises(fluidsurveys.error.InvalidRequestError,
+        self.assertRaises(fluidsurveys.exceptions.InvalidRequestError,
                           self.requestor.request,
                           'get', self.valid_path, {})
 
     def test_authentication_error(self):
         self.mock_response('{"error": {}}', 401)
 
-        self.assertRaises(fluidsurveys.error.AuthenticationError,
-                          self.requestor.request,
-                          'get', self.valid_path, {})
-
-    def test_card_error(self):
-        self.mock_response('{"error": {}}', 402)
-
-        self.assertRaises(fluidsurveys.error.CardError,
+        self.assertRaises(fluidsurveys.exceptions.AuthenticationError,
                           self.requestor.request,
                           'get', self.valid_path, {})
 
     def test_server_error(self):
         self.mock_response('{"error": {}}', 500)
 
-        self.assertRaises(fluidsurveys.error.APIError,
+        self.assertRaises(fluidsurveys.exceptions.APIError,
                           self.requestor.request,
                           'get', self.valid_path, {})
 
     def test_invalid_json(self):
         self.mock_response('{', 200)
 
-        self.assertRaises(fluidsurveys.error.APIError,
+        self.assertRaises(fluidsurveys.exceptions.APIError,
                           self.requestor.request,
                           'get', self.valid_path, {})
 
     def test_invalid_method(self):
-        self.assertRaises(fluidsurveys.error.APIConnectionError,
+        self.assertRaises(fluidsurveys.exceptions.APIConnectionError,
                           self.requestor.request,
                           'foo', 'bar')
 

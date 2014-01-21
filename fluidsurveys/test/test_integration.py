@@ -40,7 +40,7 @@ class FunctionalTests(FluidTestCase):
         api_base = fluidsurveys.api_base
         try:
             fluidsurveys.api_base = 'https://my-invalid-domain.ireallywontresolve/v1'
-            self.assertRaises(fluidsurveys.error.APIConnectionError,
+            self.assertRaises(fluidsurveys.exceptions.APIConnectionError,
                               fluidsurveys.Customer.create)
         finally:
             fluidsurveys.api_base = api_base
@@ -70,12 +70,12 @@ class FunctionalTests(FluidTestCase):
         EXPIRED_CARD = DUMMY_CARD.copy()
         EXPIRED_CARD['exp_month'] = NOW.month - 2
         EXPIRED_CARD['exp_year'] = NOW.year - 2
-        self.assertRaises(fluidsurveys.error.CardError, fluidsurveys.Charge.create,
+        self.assertRaises(fluidsurveys.exceptions.CardError, fluidsurveys.Charge.create,
                           amount=100, currency='usd', card=EXPIRED_CARD)
 
     def test_unicode(self):
         # Make sure unicode requests can be sent
-        self.assertRaises(fluidsurveys.error.InvalidRequestError,
+        self.assertRaises(fluidsurveys.exceptions.InvalidRequestError,
                           fluidsurveys.Charge.retrieve,
                           id=u'☃')
 
@@ -85,7 +85,7 @@ class FunctionalTests(FluidTestCase):
 
     def test_missing_id(self):
         customer = fluidsurveys.Customer()
-        self.assertRaises(fluidsurveys.error.InvalidRequestError, customer.refresh)
+        self.assertRaises(fluidsurveys.exceptions.InvalidRequestError, customer.refresh)
 
 
 class RequestsFunctionalTests(FunctionalTests):
@@ -121,29 +121,12 @@ class AuthenticationErrorTest(FluidTestCase):
         try:
             fluidsurveys.api_key = 'invalid'
             fluidsurveys.Customer.create()
-        except fluidsurveys.error.AuthenticationError, e:
+        except fluidsurveys.exceptions.AuthenticationError, e:
             self.assertEqual(401, e.http_status)
             self.assertTrue(isinstance(e.http_body, basestring))
             self.assertTrue(isinstance(e.json_body, dict))
         finally:
             fluidsurveys.api_key = key
-
-
-class CardErrorTest(FluidTestCase):
-
-    def test_declined_card_props(self):
-        EXPIRED_CARD = DUMMY_CARD.copy()
-        EXPIRED_CARD['exp_month'] = NOW.month - 2
-        EXPIRED_CARD['exp_year'] = NOW.year - 2
-        try:
-            fluidsurveys.Charge.create(amount=100, currency='usd', card=EXPIRED_CARD)
-        except fluidsurveys.error.CardError, e:
-            self.assertEqual(402, e.http_status)
-            self.assertTrue(isinstance(e.http_body, basestring))
-            self.assertTrue(isinstance(e.json_body, dict))
-
-# Note that these are in addition to the core functional charge tests
-
 
 class ChargeTest(FluidTestCase):
 
@@ -195,11 +178,11 @@ class ChargeTest(FluidTestCase):
 
         charge = fluidsurveys.Charge.create(**DUMMY_CHARGE)
 
-        self.assertRaisesRegexp(fluidsurveys.error.InvalidRequestError,
+        self.assertRaisesRegexp(fluidsurveys.exceptions.InvalidRequestError,
                                 'No dispute for charge',
                                 charge.update_dispute)
 
-        self.assertRaisesRegexp(fluidsurveys.error.InvalidRequestError,
+        self.assertRaisesRegexp(fluidsurveys.exceptions.InvalidRequestError,
                                 'No dispute for charge',
                                 charge.close_dispute)
 
@@ -315,19 +298,19 @@ class CustomerPlanTest(FluidTestCase):
         super(CustomerPlanTest, self).setUp()
         try:
             self.plan_obj = fluidsurveys.Plan.create(**DUMMY_PLAN)
-        except fluidsurveys.error.InvalidRequestError:
+        except fluidsurveys.exceptions.InvalidRequestError:
             self.plan_obj = None
 
     def tearDown(self):
         if self.plan_obj:
             try:
                 self.plan_obj.delete()
-            except fluidsurveys.error.InvalidRequestError:
+            except fluidsurveys.exceptions.InvalidRequestError:
                 pass
         super(CustomerPlanTest, self).tearDown()
 
     def test_create_customer(self):
-        self.assertRaises(fluidsurveys.error.InvalidRequestError,
+        self.assertRaises(fluidsurveys.exceptions.InvalidRequestError,
                           fluidsurveys.Customer.create,
                           plan=DUMMY_PLAN['id'])
         customer = fluidsurveys.Customer.create(
@@ -390,7 +373,7 @@ class InvoiceTest(FluidTestCase):
         # upcoming invoice but that isn't working so we'll just
         # check that the appropriate error comes back for now
         self.assertRaisesRegexp(
-            fluidsurveys.error.InvalidRequestError,
+            fluidsurveys.exceptions.InvalidRequestError,
             'No upcoming invoices',
             fluidsurveys.Invoice.upcoming,
             customer=customer)
@@ -399,7 +382,7 @@ class InvoiceTest(FluidTestCase):
 class CouponTest(FluidTestCase):
 
     def test_create_coupon(self):
-        self.assertRaises(fluidsurveys.error.InvalidRequestError,
+        self.assertRaises(fluidsurveys.exceptions.InvalidRequestError,
                           fluidsurveys.Coupon.create, percent_off=25)
         c = fluidsurveys.Coupon.create(**DUMMY_COUPON)
         self.assertTrue(isinstance(c, fluidsurveys.Coupon))
@@ -438,7 +421,7 @@ class InvalidRequestErrorTest(FluidTestCase):
     def test_nonexistent_object(self):
         try:
             fluidsurveys.Charge.retrieve('invalid')
-        except fluidsurveys.error.InvalidRequestError, e:
+        except fluidsurveys.exceptions.InvalidRequestError, e:
             self.assertEqual(404, e.http_status)
             self.assertTrue(isinstance(e.http_body, basestring))
             self.assertTrue(isinstance(e.json_body, dict))
@@ -446,7 +429,7 @@ class InvalidRequestErrorTest(FluidTestCase):
     def test_invalid_data(self):
         try:
             fluidsurveys.Charge.create()
-        except fluidsurveys.error.InvalidRequestError, e:
+        except fluidsurveys.exceptions.InvalidRequestError, e:
             self.assertEqual(400, e.http_status)
             self.assertTrue(isinstance(e.http_body, basestring))
             self.assertTrue(isinstance(e.json_body, dict))
@@ -458,11 +441,11 @@ class PlanTest(FluidTestCase):
         super(PlanTest, self).setUp()
         try:
             fluidsurveys.Plan(DUMMY_PLAN['id']).delete()
-        except fluidsurveys.error.InvalidRequestError:
+        except fluidsurveys.exceptions.InvalidRequestError:
             pass
 
     def test_create_plan(self):
-        self.assertRaises(fluidsurveys.error.InvalidRequestError,
+        self.assertRaises(fluidsurveys.exceptions.InvalidRequestError,
                           fluidsurveys.Plan.create, amount=2500)
         p = fluidsurveys.Plan.create(**DUMMY_PLAN)
         self.assertTrue(hasattr(p, 'amount'))

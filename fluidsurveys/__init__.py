@@ -31,10 +31,10 @@ from fluidsurveys.resource import Contact, Template
 
 # Error imports.  Note that we may want to move these out of the root
 # namespace in the future and you should prefer to access them via
-# the fully qualified `fluidsurveys.error` module.
+# the fully qualified `fluidsurveys.exceptions` module.
 
-from fluidsurveys.error import (  # noqa
-    FluidError, APIError, APIConnectionError, AuthenticationError, CardError,
+from fluidsurveys.exceptions import (  # noqa
+    FluidError, APIError, APIConnectionError, AuthenticationError,
     InvalidRequestError)
 
 # DEPRECATED: These imports will be moved out of the root fluid namespace

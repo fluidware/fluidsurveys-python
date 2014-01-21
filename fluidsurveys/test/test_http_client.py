@@ -98,7 +98,7 @@ class ClientTestBase():
 
     def test_exception(self):
         self.mock_error(self.request_mock)
-        self.assertRaises(fluidsurveys.error.APIConnectionError,
+        self.assertRaises(fluidsurveys.exceptions.APIConnectionError,
                           self.make_request,
                           'get', self.valid_url, {}, None)
 

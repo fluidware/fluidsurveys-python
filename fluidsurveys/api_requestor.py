@@ -140,9 +140,6 @@ class APIRequestor(object):
         elif rcode == 401:
             raise error.AuthenticationError(
                 err.get('message'), rbody, rcode, resp)
-        elif rcode == 402:
-            raise error.CardError(err.get('message'), err.get('param'),
-                                  err.get('code'), rbody, rcode, resp)
         else:
             raise error.APIError(err.get('message'), rbody, rcode, resp)
 
