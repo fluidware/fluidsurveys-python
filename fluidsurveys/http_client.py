@@ -1,10 +1,11 @@
+import json
 import os
 import sys
 import textwrap
 import warnings
 
-from fluidsurveys import error, util
-
+from fluidsurveys import exceptions, util, compat
+from fluidsurveys import AccessInfo
 
 # - Requests is the preferred HTTP library
 # - Google App Engine has urlfetch
@@ -70,12 +71,31 @@ def new_default_http_client(*args, **kwargs):
     return impl(*args, **kwargs)
 
 
+class Client(object):
+
+    def __init__(self):
+        self.httpclient = new_default_http_client()
+
+    def request(self, method, url, body=None):
+        headers = AccessInfo.render_header()
+        # import ipdb; ipdb.set_trace()
+        url_to_use = "".join(map(lambda x: str(x).rstrip('/'), [AccessInfo['api_base'], url]))
+        resp, status_code = self.httpclient.request(method, url_to_use, headers, body)
+
+        try:
+            body = json.loads(resp)
+        except (ValueError, TypeError):
+            body = None
+
+        return body, status_code
+
+
 class HTTPClient(object):
 
     def __init__(self, verify_ssl_certs=True):
         self._verify_ssl_certs = verify_ssl_certs
 
-    def request(self, method, url, headers, post_data=None):
+    def request(self, method, url, headers = {}, body=None):
         raise NotImplementedError(
             'HTTPClient subclasses must implement `request`')
 
@@ -83,7 +103,7 @@ class HTTPClient(object):
 class RequestsClient(HTTPClient):
     name = 'requests'
 
-    def request(self, method, url, headers, post_data=None):
+    def request(self, method, url, headers={}, body=None):
         kwargs = {}
 
         if self._verify_ssl_certs:
@@ -97,7 +117,7 @@ class RequestsClient(HTTPClient):
                 result = requests.request(method,
                                           url,
                                           headers=headers,
-                                          data=post_data,
+                                          data=body,
                                           timeout=80,
                                           **kwargs)
             except TypeError, e:
@@ -137,13 +157,13 @@ class RequestsClient(HTTPClient):
             else:
                 err += " with no error message"
         msg = textwrap.fill(msg) + "\n\n(Network error: %s)" % (err,)
-        raise error.APIConnectionError(msg)
+        raise exceptions.APIConnectionError(msg)
 
 
 class UrlFetchClient(HTTPClient):
     name = 'urlfetch'
 
-    def request(self, method, url, headers, post_data=None):
+    def request(self, method, url, headers={}, body=None):
         try:
             result = urlfetch.fetch(
                 url=url,
@@ -156,7 +176,7 @@ class UrlFetchClient(HTTPClient):
                 # GAE requests time out after 60 seconds, so make sure we leave
                 # some time for the application to handle a slow Fluid
                 deadline=55,
-                payload=post_data
+                payload=body
             )
         except urlfetch.Error, e:
             self._handle_request_error(e, url)
@@ -186,7 +206,7 @@ class UrlFetchClient(HTTPClient):
 class PycurlClient(HTTPClient):
     name = 'pycurl'
 
-    def request(self, method, url, headers, post_data=None):
+    def request(self, method, url, headers={}, body=None):
         s = util.StringIO.StringIO()
         curl = pycurl.Curl()
 
@@ -194,7 +214,7 @@ class PycurlClient(HTTPClient):
             curl.setopt(pycurl.HTTPGET, 1)
         elif method == 'post':
             curl.setopt(pycurl.POST, 1)
-            curl.setopt(pycurl.POSTFIELDS, post_data)
+            curl.setopt(pycurl.POSTFIELDS, body)
         else:
             curl.setopt(pycurl.CUSTOMREQUEST, method.upper())
 
@@ -250,11 +270,11 @@ class Urllib2Client(HTTPClient):
     else:
         name = 'urllib2'
 
-    def request(self, method, url, headers, post_data=None):
-        if sys.version_info >= (3, 0) and isinstance(post_data, basestring):
-            post_data = post_data.encode('utf-8')
+    def request(self, method, url, headers={}, body=None):
+        if sys.version_info >= (3, 0) and isinstance(body, basestring):
+            body = body.encode('utf-8')
 
-        req = urllib2.Request(url, post_data, headers)
+        req = urllib2.Request(url, body, headers)
 
         if method not in ('get', 'post'):
             req.get_method = lambda: method.upper()
