@@ -6,140 +6,130 @@ import six
 from fluidsurveys.compat import urlencode
 from fluidsurveys.http_client import Client
 
+
 class Manager(object):
 	"""Basic manager type providing common operations."""
 
 	resource_class = None
-
-	def __init__(self):
-		super(Manager, self).__init__()
-		self.client = Client()
-
-	def _list(self, url, obj_class=None, body=None):
-		""" List the collection """
-		if body:
-			resp, body = self.client.request(url, 'POST', body=body)
-		else:
-			respo, body = self.client.request(url, 'GET')
-
-		if obj_class is None:
-			obj_class = self.resource_class
-
-		data = body
-		try:
-			data = data['values']
-		except (KeyError, TypeError):
-			pass
-		return [obj_class(self, res, loaded=True) for res in data if res]
-
-	def _get(self, url):
-		""" Get an object from the collection """
-		content, status_code = self.client.request('GET', url)
-		return self.resource_class(content, loaded=True)
-
-	def _head(self, url):
-		""" Retrieve request header for an object """
-		resp, body = self.client.request('HEAD', url)
-		return resp.status_code == 204
-
-	def _post(self, url, body, return_raw=False):
-		resp, body = self.client.request('POST', url, body=body)
-		if return_raw:
-			return body
-		return self.resource_class(self, body)
-
-	def _put(self, url, body=None, responses_key=None):
-		""" Update an object with PUT method """
-		resp, body = self.client.request('PUT', url, body=body)
-		if body is not None:
-			if responses_key is not None:
-				self.resource_class(self, body)
-			else:
-				return self.resource_class(self, body)
-
-	def _patch(self, url, body=None, responses_key=None):
-		""" Update a method with patch method"""
-		resp, body = self.client.request('PATCH', url, body=body)
-		if responses_key is not None:
-			return self.resource_class(self, body)
-		else:
-			return self.resource_class(self, body)
-
-	def _delete(self, url):
-		""" Delete an object """
-		return self.client.request("DELETE", url)
-
-
-
-class CrudManager(Manager):
-	""" Base Manager for Manipulating the entities. """
 	collection_key = None
 	key = None
-	base_url = None
+	base_url = ''
 
-	def __init__(self, resource_class):
+	def __init__(self, resource_class, **kwargs):
+		super(Manager, self).__init__()
+		self.client = Client()
 		self.resource_class = resource_class
-		super(CrudManager, self).__init__()
+		self.base_url = self.base_url % kwargs
 
-	def build_url(self, dict_args_in_out=None):
+	def build_url(self, entity_id=None):
 		""" Build a resource url for a given resource. """
 
-		if dict_args_in_out is None:
-			dict_args_in_out = {}
-
-		url = dict_args_in_out.pop('base_url', None) or self.base_url or ''
+		url = self.base_url
 		url += '/%s' % self.collection_key
-
-		entity_id = dict_args_in_out.pop('id', None)
 
 		if entity_id is not None:
 			url += '/%s' % entity_id
 
 		return url
 
-	def create(self, **kwargs):
-		url = self.build_url(dict_args_in_out=kwargs)
-		return self._create(url, {self.key: kwargs}, self.key)
-
-	def get(self, **kwargs):
-		return self._get(self.build_url(dict_args_in_out=kwargs))
-
-	def head(self, **kwargs):
-		url = self.build_url(dict_args_in_out=kwargs)
-
-	def list(self, **kwargs):
-		url = self.build_url(dict_args_in_out=kwargs)
-		if kwargs:
-			query = '?%s' % urllib.parse.urlencode(kwargs)
+	def list(self, obj_class=None, body=None):
+		""" List the collection """
+		url = self.build_url()
+		if body:
+			body, status_code = self.client.request(url, 'POST', body=body)
 		else:
-			query = ''
-		return self._list('%(url)s%(query)s' % {'url': url, 'query':query}, self.collection_key)
+			body, status_code = self.client.request('GET', url)
 
-	def put(self, **kwargs):
-		return self._put(self.build_url(dict_args_in_out=kwargs))
+		if obj_class is None:
+			obj_class = self.resource_class
+		data = body['results']
+		return [obj_class(res, loaded=True) for res in data if res]
 
-	def delete(self, **kwargs):
-		return self._delete(self.build_url(dict_args_in_out=kwargs))
+	def get(self, entity_id):
+		""" Get an object from the collection """
+		url = self.build_url(entity_id=entity_id)
+		content, status_code = self.client.request('GET', url)
+		return self.resource_class(content, loaded=True)
+
+	def head(self, entity_id):
+		""" Retrieve request header for an object """
+		url = self.build_url(entity_id=entity_id)
+		resp, body = self.client.request('HEAD', url)
+		return resp.status_code == 204
+
+	def create(self, body):
+		url = self.build_url()
+		resp, body = self.client.request('POST', url, body=body)
+		return self.resource_class(self, body)
+
+	def update(self, obj):
+		""" Update an object with PUT method """
+		url = self.build_url(entity_id=obj.id)
+		body, status_code = self.client.request('PUT', url, body=obj.to_dict())
+		print body
+		if body is not None:
+			return self.resource_class(body)
+
+	def delete(self, entity_id):
+		""" Delete an object """
+		url = self.build_url(entity_id=entity_id)
+		return self.client.request("DELETE", url)
+
+	def request(self, url, method, body=None):
+		content, status_code = self.client.request(method, url, body=body)
+		return content
 
 	def find(self, **kwargs):
-		pass
+		r1 = self.findall(**kwargs)
+		num = len(r1)
+
+		if num == 0:
+			msg = "No %s matching %s." % (self.resource_class.__name__, kwargs)
+			raise exceptions.NotFound(404, msg)
+		elif num>1:
+			raise exceptions.NoUniqueMatch
+		else:
+			return r1[0]
+
+	def finalall(self, **kwargs):
+		found = []
+		searches = kwargs.items()
+
+		for obj in self.list():
+			try:
+				if all(getattr(obj, attr) == value for (attr, value) in searches):
+					found.append(obj)
+			except AttributeError:
+				continue
+
+		return found 
+
 
 class Resource(object):
 	""" Base class for fluidsurvey resource (user, survey, embed, etc.)"""
 
 	manager_class = None
 
-	def __init__(self, info, loaded=False):
-		self._info = {}
+	def __init__(self, info={}, loaded=False, **kwargs):
+		self._info = []
 		self._add_details(info)
 		self._loaded= loaded
-		self.manager = self.manager_class(self.__class__)
+		self.manager = self.manager_class(resource_class=self.__class__, **kwargs)
 
 	@classmethod
-	def retreive(cls, obj_id):
+	def retreive(cls, obj_id, **kwargs):
 		instance = cls(info={'id':obj_id})
 		instance.get()
 		return instance
+
+	@classmethod
+	def list(cls):
+		instance = cls()
+		return instance.manager.list()
+
+	def to_dict(self):
+		return dict((key, getattr(self, key)) for key in self._info)
+
 
 	def clone(self, **kwargs):
 		instance = self.__class__(info=self._info)
@@ -147,10 +137,9 @@ class Resource(object):
 		return instance
 
 	def _add_details(self, info):
-		# import ipdb; ipdb.set_trace()
 		for (k, v) in six.iteritems(info):
 			setattr(self, k, v)
-			self._info[k] = v	
+			self._info.append(k)	
 
 	def _getattr__(self, k):
 		if not k in self.__dict__:
@@ -171,12 +160,14 @@ class Resource(object):
 		self.set_loaded(True)
 		if not hasattr(self.manager, 'get'):
 			return
-		new = self.manager.get(id=self.id)
+		new = self.manager.get(entity_id=self.id)
 		if new:
-			self._add_details(new._info)
+			self._add_details(new.to_dict())
 
 	def save(self):
-		return self.manager.put(self)
+		new = self.manager.update(self)
+		if new:
+			self._add_details(new.to_dict())
 
 	def delete(self):
 		return self.manager.delete(self)

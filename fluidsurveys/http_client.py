@@ -79,7 +79,7 @@ class Client(object):
     def request(self, method, url, body=None):
         headers = AccessInfo.render_header()
         # import ipdb; ipdb.set_trace()
-        url_to_use = "".join(map(lambda x: str(x).rstrip('/'), [AccessInfo['api_base'], url]))
+        url_to_use = "".join(map(lambda x: str(x).rstrip('/'), [AccessInfo['api_base'], url])) + '/'
         resp, status_code = self.httpclient.request(method, url_to_use, headers, body)
 
         try:
